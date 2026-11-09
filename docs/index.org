@@ -5,9 +5,9 @@
 * Documents
 
 - [[file:plan.org][Plan]]: the one-shot build plan for the Leapsome goal.
-
-Debugging and testing documentation is added here when the
-application lands.
+- [[file:debugging.org][Debugging]]: from a fresh clone to a debugger stopped on a breakpoint.
+- [[file:testing.org][Testing]]: the three test layers, how to run them and add one, the assertion audit.
+- [[file:notes.org][Notes]]: rendering model, where state lives, what changes at ten times the size.
 
 * Source
 

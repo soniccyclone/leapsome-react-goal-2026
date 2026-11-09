@@ -1,0 +1,73 @@
+#+TITLE: Backlog
+#+OPTIONS: toc:nil num:nil ^:nil
+
+A game backlog tracker. Add games, set each one to backlog, playing or
+done, filter the list by status, open a game's detail page, remove it.
+The list is stored in the browser's localStorage, there is no server.
+It is a small React 19 app built with Vite, react-router and
+TypeScript, written as a place to learn React development: debugging
+and testing are documented next to the code.
+
+* Requirements
+
+Docker is the only requirement. There is no Node, npm or browser to
+install on your machine.
+
+- macOS and Windows: Docker Desktop, running.
+- Linux: Docker Engine with the Compose v2 plugin (=docker compose version= must work).
+- Windows also needs =make=, available through WSL or Git Bash. If you
+  have neither, every target below lists the =docker compose= command
+  you can run by hand.
+
+* Two ways in
+
+Develop in the devcontainer. Open the repo in VS Code, choose "Reopen
+in Container", and the editor, terminal, TypeScript server and
+debugger all run inside the project's image. Follow
+[[file:docs/debugging.org][docs/debugging.org]].
+
+Or just run it, from any terminal in a clone of this repo:
+
+#+begin_src sh
+make setup
+make dev
+#+end_src
+
+=make setup= builds the image and pulls the Playwright image (a few
+minutes the first time). =make dev= prints =http://localhost:5173=,
+starts the Vite dev server and opens that URL in your browser where it
+can. Stop it with Ctrl-C. =make help= lists every target.
+
+* Make targets
+
+The Makefile exports =PLAYWRIGHT_VERSION=, read from =package.json=
+(currently =1.65.0=), because the =e2e= service uses it as the image
+tag. If you run the commands by hand, set it first.
+
+#+begin_src sh
+export PLAYWRIGHT_VERSION=1.65.0
+#+end_src
+
+In PowerShell: =$env:PLAYWRIGHT_VERSION = "1.65.0"=.
+
+| target            | what it does                                      | by hand                                                                                         |
+|-------------------+---------------------------------------------------+-------------------------------------------------------------------------------------------------|
+| =make help=       | lists the targets                                 | none                                                                                            |
+| =make setup=      | builds the image, pulls the Playwright image      | =docker compose build= then =docker compose pull e2e=                                           |
+| =make dev=        | dev server on http://localhost:5173               | =docker compose up app=                                                                         |
+| =make shell=      | bash inside the app container                     | =docker compose run --rm app bash=                                                              |
+| =make build=      | production build into =dist/=                     | =docker compose run --rm app npm run build=                                                     |
+| =make preview=    | build, then serve =dist/= on http://localhost:4173 | =docker compose up preview=                                                                     |
+| =make lint=       | oxlint                                            | =docker compose run --rm app npm run lint=                                                      |
+| =make typecheck=  | tsc                                               | =docker compose run --rm app npm run typecheck=                                                 |
+| =make test=       | Vitest, once                                      | =docker compose run --rm app npm test=                                                          |
+| =make test-watch= | Vitest in watch mode                              | =docker compose run --rm app npm run test:watch=                                                |
+| =make test-e2e=   | Playwright against the production build           | =docker compose run --rm e2e= then =docker compose stop preview=                                |
+| =make check=      | lint, typecheck, test, test-e2e (what CI runs)    | the four commands above, in that order                                                          |
+| =make clean=      | stops containers, drops volumes, removes build output and reports | =docker compose run --rm app rm -rf dist playwright-report test-results= then =docker compose down -v --remove-orphans= |
+
+* Documentation
+
+- [[file:docs/debugging.org][docs/debugging.org]]: from a fresh clone to a debugger stopped on a breakpoint.
+- [[file:docs/testing.org][docs/testing.org]]: the three test layers, how to run them, how to add one.
+- [[file:docs/notes.org][docs/notes.org]]: rendering model, where state lives, what changes at ten times the size.

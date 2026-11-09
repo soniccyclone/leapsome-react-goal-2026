@@ -1,0 +1,56 @@
+#+TITLE: Notes
+#+OPTIONS: toc:nil num:nil ^:nil
+#+SETUPFILE: theme.setup
+
+* Rendering model
+
+A component is a function from props and state to a description of the
+UI. When state changes (a =dispatch= here), React calls that component
+again, and every child it renders, to get a new description. It then
+compares the new description with the previous one (reconciliation) and
+touches the real DOM only where they differ. The =key= on each
+=GameRow= (=src/components/GameList.tsx=) is what lets it match rows
+across renders instead of recreating them. Re-running a function is
+cheap; the DOM writes are what is avoided.
+
+Rendering must be pure: same inputs, same output, no side effects in
+the function body. =src/main.tsx= wraps the app in =StrictMode=, which
+in development calls component bodies and effects twice to flush out
+code that breaks that rule. So the =save= effect in =GamesProvider=
+runs twice on mount in dev. It is idempotent, so that is harmless, and
+the production build does not do it.
+
+* Where state lives
+
+One =useReducer= in =GamesProvider= (=src/games/GamesContext.tsx=)
+holds the list of games. The reducer (=src/games/reducer.ts=) is a pure
+function, which is why it is the easiest thing in the app to test. One
+effect writes the list to localStorage whenever it changes, and the
+initial state is read back with =load()= on first render. Persistence
+is therefore in one place and the components never touch storage.
+
+The status filter is =useState= inside =GameList=. Nothing else needs
+it, and it resets when you leave the page, which is acceptable. The
+selected game is not state at all: it is the =:id= in the URL
+(=/game/:id=), so a detail page can be reloaded or linked to.
+
+The rule used: put state in the lowest component that all its readers
+share, and put it in the URL when it identifies what you are looking
+at.
+
+* At ten times the size
+
+Everything that reads =games= re-renders on every change, because one
+context value carries the whole list. With a few games that is
+invisible; with thousands it is not. The fix would be to split the
+context into state and dispatch (dispatch never changes), or move to a
+store with selectors, and to virtualize the list.
+
+localStorage is synchronous, has a few megabytes of room, and is
+rewritten in full on each change. Past a point this wants IndexedDB or a
+server, and then =load= and =save= become async, and the lazy initial
+state in =useReducer= goes away in favor of a loading state.
+
+The reducer file would split by feature, the CSS file would split by
+component, and the e2e layer would need seeded data rather than going
+through the UI to create it.
