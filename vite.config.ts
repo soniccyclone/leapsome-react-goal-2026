@@ -7,6 +7,7 @@ export default defineConfig({
     host: true,
     watch: { usePolling: !!process.env.CHOKIDAR_USEPOLLING },
   },
+  preview: { allowedHosts: ['preview'] },
   build: { sourcemap: true },
-  test: { environment: 'jsdom', passWithNoTests: true },
+  test: { environment: 'jsdom', include: ['src/**/*.test.{ts,tsx}'] },
 })

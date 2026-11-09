@@ -12,7 +12,7 @@ export default function AddGameForm() {
     if (!t) return
     dispatch({
       type: 'add',
-      game: { id: crypto.randomUUID(), title: t, platform: platform.trim(), status: 'backlog' },
+      game: { id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`, title: t, platform: platform.trim(), status: 'backlog' },
     })
     setTitle('')
     setPlatform('')
