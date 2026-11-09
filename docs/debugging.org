@@ -3,164 +3,236 @@
 #+SETUPFILE: theme.setup
 
 This is a procedure. Do the steps in order from a fresh clone. At the
-end you have the app running, a breakpoint stopped inside the reducer
-in VS Code, and a way through each common failure.
+end you have the app running, a debugger stopped inside the reducer
+from the terminal, a browser you drive from a REPL, and a way through
+each common failure. Nothing here needs an editor integration. Every
+debugger runs inside Docker through =make=, and the browser side works
+with whatever browser you already use, Safari included.
 
 * 1. Install
 
 You need Docker running (Docker Desktop on macOS and Windows, Docker
-Engine with Compose v2 on Linux), VS Code, and the "Dev Containers"
-extension (=ms-vscode-remote.remote-containers=). Nothing else.
-
-Clone the repo and open the folder in VS Code. VS Code offers "Reopen
-in Container" in a notification; if you miss it, run "Dev Containers:
-Reopen in Container" from the command palette. The first time it
-builds the image from the =Dockerfile= (Node 24, =npm ci=), starts the
-=app= service, adds the docker CLI through the docker-outside-of-docker
-feature, and installs the Vitest, oxc and Playwright extensions into
-the container. Expect a few minutes.
-
-How the devcontainer is wired: it uses =compose.yaml= plus
-=.devcontainer/compose.yaml=. The second file makes the =app= service
-run =sleep infinity= and publish no ports, so the container is a
-workspace and not the dev server. It runs under the compose project
-name =leapsome-react-goal-devcontainer=. The =preview= and =e2e= services
-sit behind the compose profile =e2e=, so opening the devcontainer
-starts only =app=; =make preview= and =make test-e2e= name those
-services explicitly, which enables the profile for that command.
-
-You are inside when the status bar at the bottom left of VS Code shows
-"Dev Container: backlog", and a terminal opened in VS Code prints this:
+Engine with Compose v2 on Linux) and =make=. Nothing else: no Node, no
+npm, no browser download.
 
 #+begin_src sh
-pwd
+git clone git@github.com:soniccyclone/leapsome-react-goal-2026.git
+cd leapsome-react-goal-2026
+make setup
 #+end_src
 
+=make setup= checks that =docker= and =docker compose= exist, builds
+the app image from the =Dockerfile= (Node 24, =npm ci=) and pulls the
+Playwright image used for end-to-end tests and the browser REPL. The
+first run downloads a few gigabytes. It ends with:
+
 #+begin_example
-/app
+ leapsome-react-goal-app  Built
+ e2e Pulled
 #+end_example
 
-If it prints a path on your own disk, or the status bar shows no
-container name, you are editing on the host. Run "Dev Containers:
-Reopen in Container".
-
-If Docker is not running, the Dev Containers extension reports that it cannot reach
-Docker (the underlying docker CLI error is =Cannot connect to the
-Docker daemon=). Start Docker
-Desktop, wait until it says it is running, and choose "Reopen in
-Container" again. On Linux, start the service with =systemctl start docker=
-(or =systemctl --user start docker-desktop=) instead.
-
-To only run the app without VS Code, make sure =make= and Docker are
-available and run =make setup= and =make dev= from any terminal.
+If Docker is not running, the first compose command fails with =Cannot
+connect to the Docker daemon=. Start Docker Desktop, wait until it says
+it is running, and run =make setup= again. On Linux, =systemctl start
+docker=.
 
 * 2. Run
 
-In the devcontainer terminal:
-
 #+begin_src sh
-make setup
 make dev
 #+end_src
 
-=make setup= builds the images and pulls the Playwright image (the
-=docker= CLI inside the devcontainer talks to your host's Docker
-through the socket, so these are your host's images). =make dev= prints
-=http://localhost:5173= and starts the Vite dev server. The server
-output ends with a line like this:
+It prints =http://localhost:5173=, opens that URL in your browser where
+it can, and starts the Vite dev server in the =app= container. The
+server output ends with a line like this:
 
 #+begin_example
 app-1  |   VITE v8.x.x  ready in NNN ms
 app-1  |   ➜  Local:   http://localhost:5173/
 #+end_example
 
-Because the docker CLI is talking to the host's Docker, =make dev=
-starts a sibling container under the compose project
-=leapsome-react-goal= and that container publishes port 5173 on your
-host. That is why =http://localhost:5173= in your host browser reaches
-it, and why the "Debug in Chrome" configuration below works against
-=localhost:5173=. The sibling container mounts the repo at =/app=, the
-same path the devcontainer uses, so file paths in source maps match
-what VS Code has open.
-
-Open http://localhost:5173 in your browser. Add a game. Edit
-=src/components/AddGameForm.tsx= (change the "Add game" button text)
-and save: the page updates without a reload (HMR). If it does not, see
-failure modes below.
+Add a game. Edit =src/components/AddGameForm.tsx= (change the "Add
+game" button text) and save: the page updates without a reload (HMR).
+If it does not, see failure modes below.
 
 Where output goes: the terminal running =make dev= shows Vite's own
 output (startup, build errors, HMR updates). Anything the app logs with
 =console.log=, and all React warnings, appear in the browser's
 developer console, not in the terminal. Stop the dev server with
-Ctrl-C in the terminal running =make dev=.
+Ctrl-C.
 
 * 3. Browser
 
-Install the React Developer Tools extension in the browser you use on
-the host (Chrome, Edge or Firefox; it is a browser extension, nothing
-in the container provides it). Reload the app tab and open developer
-tools (F12). Two new tabs appear: Components and Profiler.
+Any browser's developer tools are a debugger for the running app. Vite
+serves source maps, so the browser shows =src/games/reducer.ts= as
+TypeScript, not compiled output, and breakpoints land on the lines you
+see in your editor.
 
-- Components: pick =GamesProvider= to see the =games= array in its
-  hooks, live. Pick a =GameRow= to see its =game= prop. Edit a value in
-  the panel and the UI re-renders.
-- Profiler: click record, change one game's status on its detail page,
-  stop. The flame graph shows which components re-rendered and how long
-  each took; every component that reads =useGames()= re-renders on a
-  dispatch.
-- Sources: press Ctrl-P (Cmd-P on macOS) and type =reducer.ts=. The
-  file opens as TypeScript, not compiled output, because Vite serves
-  source maps. Click a line number to set a breakpoint, then change a
-  game's status.
-- Application: Local Storage, then =http://localhost:5173=. The key
-  =backlog.games= holds the list as JSON. Double-click the value to
-  edit it, delete the key to reset the app, reload to see the result.
-  The key is defined in =src/games/storage.ts=.
+Safari: Settings, Advanced, turn on "Show features for web
+developers". Then with the app open, Develop, Show Web Inspector
+(Cmd-Option-I). Chrome, Edge and Firefox: F12.
 
-* 4. Editor
+Set a breakpoint in the reducer:
 
-In VS Code, open the Run and Debug panel, choose "Debug in Chrome" and
-start it. It launches Chrome on your host at =http://localhost:5173=
-with =webRoot= =/app=. This needs =make dev= from step 2 still running
-and Chrome installed on the host.
+1. Open the Sources tab (Safari and Chrome) or Debugger tab (Firefox).
+2. Find =src/games/reducer.ts=. Safari lists it under
+   =localhost:5173= in the sidebar; in Chrome press Cmd-P and type the
+   name.
+3. Click the line number next to =case 'setStatus':=.
+4. In the app, click a game to open its detail page and change Status.
 
-Open =src/games/reducer.ts= and click the gutter next to line 14, the
-=case 'setStatus':= branch, to set a breakpoint. In the app click a
-game, open its detail page, and change Status to a different value. VS
-Code stops on that line. In the Variables pane you see =state= (the
-array) and =action= (=type=, =id=, =status=). Step over (F10) to watch
-=state.map= produce the new array, then continue (F5).
+The browser stops on that line. The scope pane shows =state= (the
+array) and =action= (=type=, =id=, =status=). Step over to watch
+=state.map= produce the new array, then continue. You stop twice per
+change in development: =StrictMode= in =src/main.tsx= calls reducers
+twice to check they are pure. That is expected and does not happen in
+the production build (step 6).
 
-You will usually stop twice per change: in development =StrictMode=
-(=src/main.tsx=) calls reducers twice to check they are pure. That is
-expected.
+Stored data: Safari has a Storage tab, Chrome an Application tab,
+Firefox a Storage tab. Under Local Storage for =http://localhost:5173=,
+the key =backlog.games= holds the list as JSON. Edit the value to
+change the app's state, delete the key to reset it, reload to see the
+result. The key is defined in =src/games/storage.ts=, and =load()=
+there returns an empty list if what it finds is not a valid list of
+games.
 
-If the breakpoint shows as unbound (gray), check that =make dev= is
-running and that you started the session from inside the devcontainer.
+React Developer Tools is a browser extension for Chrome, Edge and
+Firefox (not Safari). With it, the Components tab shows =GamesProvider=
+and its =games= array live, and the Profiler records which components
+re-rendered on a dispatch and how long each took. Useful, optional.
 
-* 5. Tests
+* 4. REPL debugger for the reducer and the tests
 
-Open a test file, for example =src/games/reducer.test.ts=, set a
-breakpoint inside an =it= block, pick "Debug current Vitest file" in
-the Run and Debug panel and start it. It runs Vitest on just that file
-under the Node inspector. There is no port or path mapping, because VS
-Code and the tests are in the same container.
+For code that the tests exercise, which is all of =src/games/=, you do
+not need a browser at all. =make debug-test= runs one test file under
+Node's inspector and attaches Node's own command-line debugger, a REPL,
+inside the container.
 
-For the edit loop, run this in the devcontainer terminal:
+Choose where to stop by putting a =debugger= statement in the code.
+Line-number breakpoints are unreliable here because Vite transforms the
+TypeScript before Node sees it and the line numbers shift; a =debugger=
+statement stops exactly where you wrote it. For example, in
+=src/games/reducer.ts=:
 
-#+begin_src sh
-make test-watch
+#+begin_src typescript
+    case 'setStatus':
+      debugger
+      return state.map((g) =>
 #+end_src
 
-Vitest reruns the affected tests on every save. Press =q= to quit.
-The Vitest extension also puts a test explorer in the Testing sidebar
-(flask icon), where you can run or debug one test with a click. More in
-[[file:testing.org][testing.org]].
+Then:
+
+#+begin_src sh
+make debug-test FILE=src/games/reducer.test.ts
+#+end_src
+
+=FILE= defaults to that file, so =make debug-test= alone does the same.
+It starts Vitest with =--inspect-brk --no-file-parallelism
+--testTimeout=0= on that file, waits for the inspector port, and
+attaches. Vitest pauses on the first line of the test file before
+running anything, so the first thing you see is that file's compiled
+first line. Type =c= to continue to your =debugger= statement:
+
+#+begin_example
+debug> c
+break in src/games/reducer.ts:7
+  5           case "remove": return state.filter((g) => g.id !== action.id);
+  6           case "setStatus":
+> 7                   debugger;
+  8                   return state.map((g) => g.id === action.id ? {
+  9                           ...g,
+debug> exec action
+{ type: 'setStatus', id: '1', status: 'done' }
+debug> exec state.map(g => g.title)
+[ 'Zelda', 'Mario' ]
+debug> n
+step in src/games/reducer.ts:8
+debug> c
+#+end_example
+
+The commands you will use:
+
+| command           | does                                                           |
+|-------------------+----------------------------------------------------------------|
+| =c=               | continue to the next =debugger= statement or the end           |
+| =n=               | step to the next line                                          |
+| =s= / =o=         | step into / step out                                           |
+| =exec <expr>=     | evaluate an expression in the paused scope                     |
+| =repl=            | open a REPL in the paused scope; Ctrl-C returns to the debugger |
+| =list(3)=         | show 3 lines around the current position                       |
+| =bt=              | stack trace                                                    |
+| =watch('expr')=   | print an expression at every stop                              |
+| =.exit=           | detach; the tests run to completion                            |
+
+Test timeouts are off during this session, so you can sit on a
+breakpoint as long as you like. When the tests finish, or when you
+detach with =.exit=, the target prints Vitest's result for the file.
+
+Remove the =debugger= statement when you are done. If you forget,
+=make lint= fails on it: oxlint's =no-debugger= rule is on.
+
+* 5. Browser REPL
+
+#+begin_src sh
+make debug-browser
+#+end_src
+
+This starts the dev server if it is not already running, waits until
+it answers, and opens a Node REPL in the Playwright container with a
+headless Chromium already pointed at the app. The REPL prints its own
+help and a =browser>= prompt. Top-level =await= works.
+
+#+begin_example
+browser> await games()
+[]
+browser> await add('Hades', 'PC')
+undefined
+browser> await games()
+[
+  {
+    id: 'mw9o9dua-lb2p68665g',
+    title: 'Hades',
+    platform: 'PC',
+    status: 'backlog'
+  }
+]
+browser> await page.getByRole('link', { name: 'Hades' }).click()
+browser> await page.evaluate(() => document.title)
+'Backlog'
+browser> await shot('hades')
+'test-results/hades.png'
+browser> .exit
+#+end_example
+
+=page= is a Playwright Page, so everything in the
+[[https://playwright.dev/docs/api/class-page][Page API]] is available:
+=page.goto=, locators, =page.evaluate= to run JavaScript inside the
+app, =page.reload=. The helpers =games()=, =add()=, =shot()= and
+=html()= are defined in =debug/browser.cjs= and are plain functions;
+add your own there. The browser's console messages and page errors
+print in the REPL as they happen and accumulate in =logs=.
+
+Screenshots land in =test-results/= in the repo on your machine, since
+the repo is bind-mounted into the container. The folder is gitignored.
+
+This is the tool for reproducing a bug as a script rather than by
+clicking: paste the steps that trigger it, call =games()= to see the
+stored state, call =shot()= to see the page. It is also exactly the API
+the end-to-end tests use, so a sequence that reproduces a bug here is
+most of a regression test (see [[file:testing.org][testing.org]]).
+
+The REPL reaches the dev server at =http://backlog:5173= over the
+compose network, an alias defined in =compose.yaml=. The service's own
+name =app= cannot be used: Chromium treats a bare =app= host as the
+=.app= top-level domain, which is on the HSTS preload list, and forces
+HTTPS. =vite.config.ts= allows the =backlog= host.
+
+Leaving the REPL leaves the dev server up for your browser or the next
+session. =make clean= stops everything.
 
 * 6. Production build
 
-Debug what users get, not the dev server. Stop =make dev= first (they
-use different ports, so this is optional).
+Debug what users get, not the dev server.
 
 #+begin_src sh
 make build
@@ -170,18 +242,21 @@ make preview
 =make build= type-checks and writes =dist/=. =make preview= builds again
 and serves it at =http://localhost:4173=. Source maps are on in the
 production build (=build.sourcemap: true= in =vite.config.ts=), so the
-Sources tab still shows =src/games/reducer.ts= and breakpoints work
-the same way. StrictMode's double invocation does not happen in this
-build, so you stop once per change. Stop it with Ctrl-C.
+browser's Sources tab still shows =src/games/reducer.ts= and
+breakpoints work the same way as in step 3. StrictMode's double
+invocation does not happen in this build, so you stop once per change.
+Stop it with Ctrl-C.
 
 * 7. Failure modes
 
-| symptom                                    | what to do                                                                                                                       |
-|--------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------|
-| blank page                                 | open the browser console. A thrown error during render empties the page, and the message and stack are there.                    |
-| state does not update                      | Components tab: compare the component's props with the =GamesProvider= hooks. If the provider changed and the child did not, the child is not reading =useGames()=; if the provider did not change, the =dispatch= never ran, so put a breakpoint in the reducer. |
-| an effect or reducer runs twice            | expected in development. =StrictMode= does it on purpose. It does not happen in =make preview=.                                  |
-| old or wrong data on load                  | Application tab, key =backlog.games=. Edit or delete it. =load()= returns an empty list if the JSON is invalid or has a bad shape. |
-| edit saved, page did not update (no HMR)   | file events do not reach the container on some setups. Stop =make dev= and run =CHOKIDAR_USEPOLLING=1 make dev=. =compose.yaml= passes it to the container and =vite.config.ts= turns on polling. |
-| red squiggles everywhere in the editor     | you are on the host, where there is no =node_modules=. Check the status bar for "Dev Container: backlog" and run =pwd= in the terminal. If it is not =/app=, reopen in the container. |
-| =make dev= says port 5173 is in use        | another dev server is running. Stop it, or on the host run =docker compose ls= and stop the project that publishes it.            |
+| symptom                                              | what to do                                                                                                                       |
+|------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------|
+| blank page                                           | open the browser console. A thrown error during render empties the page, and the message and stack are there.                    |
+| state does not update                                | put a =debugger= in the reducer and use step 3 or step 4. If it never stops, =dispatch= never ran. If it stops and returns the right array, the component is not reading =useGames()=. |
+| an effect or reducer runs twice                      | expected in development. =StrictMode= does it on purpose. It does not happen in =make preview=.                                  |
+| old or wrong data on load                            | browser storage tab, key =backlog.games=, or =await games()= in the browser REPL. =load()= returns an empty list if the JSON is invalid or has a bad shape. |
+| edit saved, page did not update (no HMR)             | file events do not reach the container on some setups. Stop =make dev= and run =CHOKIDAR_USEPOLLING=1 make dev=. =compose.yaml= passes it to the container and =vite.config.ts= turns on polling. |
+| =make debug-test= never stops at your =debugger=     | that test file does not run that code path. Check =FILE=, or put the statement in the test itself first.                        |
+| =make lint= fails with =no-debugger=                 | a =debugger= statement was left in. Remove it.                                                                                   |
+| =make debug-browser= fails with =ERR_SSL_PROTOCOL_ERROR= | the alias in =compose.yaml= was changed to a name Chromium treats as an HSTS-preloaded domain (=app=, =dev=). Use another name and update =allowedHosts= in =vite.config.ts=. |
+| =make dev= says port 5173 is in use                  | another dev server is running. Stop it, or run =docker compose ls= and stop the project that publishes it.                        |

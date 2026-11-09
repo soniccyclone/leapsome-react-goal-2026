@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true,
+    allowedHosts: ['backlog'],
     watch: { usePolling: !!process.env.CHOKIDAR_USEPOLLING },
   },
   preview: { allowedHosts: ['preview'] },

@@ -3,8 +3,7 @@
 #+SETUPFILE: theme.setup
 
 Everything here runs through =make= and Docker. Nothing is installed on
-your machine. Run the commands from a terminal in the repo root, or from
-the devcontainer terminal.
+your machine. Run the commands from a terminal in the repo root.
 
 * The three layers
 
@@ -121,10 +120,10 @@ a fresh browser context, so localStorage starts empty.
 
 * Debugging a failing test
 
-Unit and integration. In VS Code (devcontainer), open the failing test
-file, set a breakpoint, and run "Debug current Vitest file" from the
-Run and Debug panel (it runs =vitest run --no-file-parallelism= on the
-current file under the inspector). Without a debugger, run
+Unit and integration. Put a =debugger= statement in the test or in the
+code under test and run =make debug-test FILE=<the test file>=. Node.s
+CLI debugger attaches to Vitest and stops there; the walkthrough is in
+[[file:debugging.org][debugging.org]], step 4. Without a debugger, run
 =make test-watch= and read the diff Vitest prints for the failed
 =expect=; it reruns on every save.
 

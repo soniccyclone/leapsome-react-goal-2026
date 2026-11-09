@@ -9,7 +9,9 @@ DC := docker compose
 APP := $(DC) run --rm app
 
 .DEFAULT_GOAL := help
-.PHONY: help setup dev shell build preview lint typecheck test test-watch test-e2e check clean
+FILE ?= src/games/reducer.test.ts
+
+.PHONY: help setup dev shell build preview lint typecheck test test-watch test-e2e check clean debug-test debug-browser
 
 help:
 	@printf '%s\n' \
@@ -23,6 +25,8 @@ help:
 	  'make test        vitest run' \
 	  'make test-watch  vitest in watch mode' \
 	  'make test-e2e    Playwright against the preview service' \
+	  'make debug-test  Node CLI debugger attached to vitest on FILE (default src/games/reducer.test.ts)' \
+	  'make debug-browser  Playwright REPL driving headless Chromium against the dev server' \
 	  'make check       lint, typecheck, test, test-e2e' \
 	  'make clean       stop containers, drop volumes, remove dist and reports'
 
@@ -65,6 +69,15 @@ test-e2e:
 	$(DC) run --rm e2e; status=$$?; $(DC) stop preview; exit $$status
 
 check: lint typecheck test test-e2e
+
+debug-test:
+	$(APP) sh -c 'npx vitest run --inspect-brk=127.0.0.1:9229 --no-file-parallelism --testTimeout=0 $(FILE) >/tmp/vitest.log 2>&1 & \
+	  until node -e "require(\"net\").connect(9229,\"127.0.0.1\").on(\"connect\",()=>process.exit(0)).on(\"error\",()=>process.exit(1))" 2>/dev/null; do sleep 0.5; done; \
+	  node inspect 127.0.0.1:9229; wait; cat /tmp/vitest.log'
+
+debug-browser:
+	$(DC) up -d --wait app
+	$(DC) run --rm --no-deps -e BASE_URL=http://backlog:5173 e2e sh -c 'npm ci --silent && node debug/browser.cjs'
 
 clean:
 	$(APP) rm -rf dist playwright-report test-results

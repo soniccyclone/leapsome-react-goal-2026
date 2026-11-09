@@ -5,7 +5,7 @@
 * Documents
 
 - [[file:plan.org][Plan]]: the one-shot build plan for the Leapsome goal.
-- [[file:debugging.org][Debugging]]: from a fresh clone to a debugger stopped on a breakpoint.
+- [[file:debugging.org][Debugging]]: from a fresh clone to a REPL debugger stopped inside the reducer, and a browser you drive from a REPL.
 - [[file:testing.org][Testing]]: the three test layers, how to run them and add one, the assertion audit.
 - [[file:notes.org][Notes]]: rendering model, where state lives, what changes at ten times the size.
 

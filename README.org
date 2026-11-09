@@ -22,14 +22,9 @@ install on your machine.
   have neither, every target below lists the =docker compose= command
   you can run by hand.
 
-* Two ways in
+* Run it
 
-Develop in the devcontainer. Open the repo in VS Code, choose "Reopen
-in Container", and the editor, terminal, TypeScript server and
-debugger all run inside the project's image. Follow
-[[file:docs/debugging.org][docs/debugging.org]].
-
-Or just run it, from any terminal in a clone of this repo:
+From any terminal in a clone of this repo:
 
 #+begin_src sh
 make setup
@@ -62,6 +57,8 @@ you bump one, bump the other.
 | =make test=       | Vitest, once                                      | =docker compose run --rm app npm test=                                                          |
 | =make test-watch= | Vitest in watch mode                              | =docker compose run --rm app npm run test:watch=                                                |
 | =make test-e2e=   | Playwright against the production build           | =docker compose run --rm e2e= then =docker compose stop preview=                                |
+| =make debug-test=   | Node CLI debugger attached to Vitest on =FILE=   | see [[file:docs/debugging.org][docs/debugging.org]]                                                            |
+| =make debug-browser= | Playwright REPL driving headless Chromium        | see [[file:docs/debugging.org][docs/debugging.org]]                                                            |
 | =make check=      | lint, typecheck, test, test-e2e (what CI runs)    | the four commands above, in that order                                                          |
 | =make clean=      | stops containers, drops volumes, removes build output and reports | =docker compose run --rm app rm -rf dist playwright-report test-results= then =docker compose down -v --remove-orphans= |
 
