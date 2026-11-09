@@ -2,6 +2,12 @@
 #+OPTIONS: toc:nil num:nil ^:nil
 #+SETUPFILE: theme.setup
 
+* The app
+
+[[file:../index.html][Open the backlog tracker]]. It is the production build
+of this repo, served by GitHub Pages. Your list is stored in your
+browser.
+
 * Documents
 
 - [[file:plan.org][Plan]]: the one-shot build plan for the Leapsome goal.

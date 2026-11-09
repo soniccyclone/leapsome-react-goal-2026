@@ -4,6 +4,9 @@
 #+ATTR_HTML: :width 100%
 [[file:docs/screenshot.png]]
 
+Live at [[https://soniccyclone.github.io/leapsome-react-goal-2026/][soniccyclone.github.io/leapsome-react-goal-2026]], with the
+docs under [[https://soniccyclone.github.io/leapsome-react-goal-2026/docs/][/docs/]]. There is no server; the list lives in your browser.
+
 A game backlog tracker. Add games, set each one to backlog, playing or
 done, filter the list by status, open a game's detail page, remove it.
 The list is stored in the browser's localStorage, there is no server.
