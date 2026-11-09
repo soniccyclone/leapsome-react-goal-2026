@@ -1,0 +1,23 @@
+{
+  "name": "backlog",
+  "dockerComposeFile": "../compose.yaml",
+  "service": "app",
+  "workspaceFolder": "/app",
+  "initializeCommand": "printf 'PLAYWRIGHT_VERSION=%s\\n' $(sed -n 's#.*\"@playwright/test\": \"\\([^\"]*\\)\".*#\\1#p' package.json) > .env",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "containerEnv": {
+    "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+  },
+  "forwardPorts": [5173],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vitest.explorer",
+        "dbaeumer.vscode-eslint",
+        "ms-playwright.playwright"
+      ]
+    }
+  }
+}
