@@ -244,3 +244,21 @@ confirm the TypeScript server resolves =react= with no red squiggles,
 reducer with "Debug in Chrome", break inside a test with "Debug current
 Vitest file". Then follow =docs/testing.org= to add one assertion and
 run it with =make test=.
+
+* Revision, 2026-11-09 evening
+
+The devcontainer is gone. VS Code's debugger cannot drive Safari, and
+the devcontainer existed only to make the VS Code debugger work, so
+with that path closed it was configuration without a job. In its
+place, two Makefile targets that run REPL debuggers inside Docker:
+
+- =make debug-test FILE=...=: Node's CLI debugger attached to Vitest.
+  Put a =debugger= statement where you want to stop.
+- =make debug-browser=: a Node REPL with headless Chromium pointed at
+  the dev server, so you can drive the page, read localStorage, and
+  take screenshots from the terminal.
+
+Any browser's own Web Inspector against =http://localhost:5173= covers
+breakpoints in the running app; Vite serves source maps, so the
+Sources tab shows TypeScript. Steps 1, 5 and parts of 8 above describe
+the earlier design; =docs/debugging.org= describes what exists.

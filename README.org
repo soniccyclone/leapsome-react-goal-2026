@@ -22,14 +22,9 @@ install on your machine.
   have neither, every target below lists the =docker compose= command
   you can run by hand.
 
-* Two ways in
+* Run it
 
-Develop in the devcontainer. Open the repo in VS Code, choose "Reopen
-in Container", and the editor, terminal, TypeScript server and
-debugger all run inside the project's image. Follow
-[[file:docs/debugging.org][docs/debugging.org]].
-
-Or just run it, from any terminal in a clone of this repo:
+From any terminal in a clone of this repo:
 
 #+begin_src sh
 make setup
@@ -43,15 +38,11 @@ can. Stop it with Ctrl-C. =make help= lists every target.
 
 * Make targets
 
-The Makefile exports =PLAYWRIGHT_VERSION=, read from =package.json=
-(currently =1.65.0=), because the =e2e= service uses it as the image
-tag. If you run the commands by hand, set it first.
-
-#+begin_src sh
-export PLAYWRIGHT_VERSION=1.65.0
-#+end_src
-
-In PowerShell: =$env:PLAYWRIGHT_VERSION = "1.65.0"=.
+The =e2e= service.s image tag comes from =PLAYWRIGHT_VERSION= in the
+committed =.env= file, which compose reads on its own, so the commands
+below work by hand with nothing exported. =make test-e2e= fails early
+if that value drifts from =@playwright/test= in =package.json=; when
+you bump one, bump the other.
 
 | target            | what it does                                      | by hand                                                                                         |
 |-------------------+---------------------------------------------------+-------------------------------------------------------------------------------------------------|
@@ -66,6 +57,8 @@ In PowerShell: =$env:PLAYWRIGHT_VERSION = "1.65.0"=.
 | =make test=       | Vitest, once                                      | =docker compose run --rm app npm test=                                                          |
 | =make test-watch= | Vitest in watch mode                              | =docker compose run --rm app npm run test:watch=                                                |
 | =make test-e2e=   | Playwright against the production build           | =docker compose run --rm e2e= then =docker compose stop preview=                                |
+| =make debug-test=   | Node CLI debugger attached to Vitest on =FILE=   | see [[file:docs/debugging.org][docs/debugging.org]]                                                            |
+| =make debug-browser= | Playwright REPL driving headless Chromium        | see [[file:docs/debugging.org][docs/debugging.org]]                                                            |
 | =make check=      | lint, typecheck, test, test-e2e (what CI runs)    | the four commands above, in that order                                                          |
 | =make clean=      | stops containers, drops volumes, removes build output and reports | =docker compose run --rm app rm -rf dist playwright-report test-results= then =docker compose down -v --remove-orphans= |
 

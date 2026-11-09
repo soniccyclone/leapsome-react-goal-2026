@@ -4,11 +4,7 @@ dist
 dist-ssr
 *.local
 *.log
-.vscode/*
-!.vscode/extensions.json
-!.vscode/launch.json
 .idea
 .DS_Store
 playwright-report
 test-results
-.env
