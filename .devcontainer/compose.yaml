@@ -1,6 +1,0 @@
-name: leapsome-react-goal-devcontainer
-
-services:
-  app:
-    command: sleep infinity
-    ports: !reset []
