@@ -1,6 +1,9 @@
 #+TITLE: Backlog
 #+OPTIONS: toc:nil num:nil ^:nil
 
+#+ATTR_HTML: :width 100%
+[[file:docs/screenshot.png]]
+
 A game backlog tracker. Add games, set each one to backlog, playing or
 done, filter the list by status, open a game's detail page, remove it.
 The list is stored in the browser's localStorage, there is no server.

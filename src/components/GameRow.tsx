@@ -8,9 +8,9 @@ export default function GameRow({ game }: { game: Game }) {
     <li>
       <Link to={`/game/${game.id}`}>{game.title}</Link>
       <span>{game.platform}</span>
-      <span>{game.status}</span>
+      <span data-status={game.status}>{game.status}</span>
       <button type="button" onClick={() => dispatch({ type: 'remove', id: game.id })}>
-        Remove {game.title}
+        Remove <span className="sr-only">{game.title}</span>
       </button>
     </li>
   )

@@ -7,7 +7,7 @@ import GameList from './components/GameList.tsx'
 function Home() {
   return (
     <>
-      <h1>Backlog</h1>
+      <h1 className="wordmark">Backlog</h1>
       <AddGameForm />
       <GameList />
     </>
