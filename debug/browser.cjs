@@ -7,7 +7,8 @@ const help = `
 Headless Chromium against ${base}. Top-level await works.
 
   page                              the Playwright Page: https://playwright.dev/docs/api/class-page
-  await page.goto('/game/abc')      navigate, relative to the base URL
+  await goto('/game/abc')           navigate and print the HTTP status; page.goto itself returns a large Response object
+  await reload()                    reload and print the URL
   await page.getByRole('link', { name: 'Hades' }).click()
   await page.evaluate(() => document.title)
   await games()                     the list the app holds in localStorage
@@ -49,6 +50,11 @@ async function main() {
       return path
     },
     html: () => page.content(),
+    goto: async (path) => (await page.goto(path)).status(),
+    reload: async () => {
+      await page.reload()
+      return page.url()
+    },
   })
   r.on('exit', () => browser.close().then(() => process.exit(0)))
 }

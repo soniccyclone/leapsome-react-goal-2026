@@ -206,10 +206,13 @@ browser> .exit
 
 =page= is a Playwright Page, so everything in the
 [[https://playwright.dev/docs/api/class-page][Page API]] is available:
-=page.goto=, locators, =page.evaluate= to run JavaScript inside the
-app, =page.reload=. The helpers =games()=, =add()=, =shot()= and
-=html()= are defined in =debug/browser.cjs= and are plain functions;
-add your own there. The browser's console messages and page errors
+locators, =page.evaluate= to run JavaScript inside the app, and so
+on. Navigation methods like =page.goto= and =page.reload= return a
+Playwright Response object, which the REPL prints in full, so use the
+=goto(path)= and =reload()= helpers, which print the status and the
+URL instead. The helpers =games()=, =add()=, =shot()=, =html()=,
+=goto()= and =reload()= are defined in =debug/browser.cjs= and are
+plain functions; add your own there. The browser's console messages and page errors
 print in the REPL as they happen and accumulate in =logs=.
 
 Screenshots land in =test-results/= in the repo on your machine, since
