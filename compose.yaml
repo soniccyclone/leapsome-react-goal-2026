@@ -26,7 +26,7 @@ services:
       retries: 90
 
   e2e:
-    image: mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION:?set by Makefile}-noble
+    image: mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION:-}-noble
     working_dir: /app
     volumes:
       - ${LOCAL_WORKSPACE_FOLDER:-.}:/app
