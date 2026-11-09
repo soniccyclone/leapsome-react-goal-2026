@@ -24,7 +24,10 @@ How the devcontainer is wired: it uses =compose.yaml= plus
 =.devcontainer/compose.yaml=. The second file makes the =app= service
 run =sleep infinity= and publish no ports, so the container is a
 workspace and not the dev server. It runs under the compose project
-name =leapsome-react-goal-devcontainer=.
+name =leapsome-react-goal-devcontainer=. The =preview= and =e2e= services
+sit behind the compose profile =e2e=, so opening the devcontainer
+starts only =app=; =make preview= and =make test-e2e= name those
+services explicitly, which enables the profile for that command.
 
 You are inside when the status bar at the bottom left of VS Code shows
 "Dev Container: backlog", and a terminal opened in VS Code prints this:

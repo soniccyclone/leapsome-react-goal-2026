@@ -43,15 +43,11 @@ can. Stop it with Ctrl-C. =make help= lists every target.
 
 * Make targets
 
-The Makefile exports =PLAYWRIGHT_VERSION=, read from =package.json=
-(currently =1.65.0=), because the =e2e= service uses it as the image
-tag. If you run the commands by hand, set it first.
-
-#+begin_src sh
-export PLAYWRIGHT_VERSION=1.65.0
-#+end_src
-
-In PowerShell: =$env:PLAYWRIGHT_VERSION = "1.65.0"=.
+The =e2e= service.s image tag comes from =PLAYWRIGHT_VERSION= in the
+committed =.env= file, which compose reads on its own, so the commands
+below work by hand with nothing exported. =make test-e2e= fails early
+if that value drifts from =@playwright/test= in =package.json=; when
+you bump one, bump the other.
 
 | target            | what it does                                      | by hand                                                                                         |
 |-------------------+---------------------------------------------------+-------------------------------------------------------------------------------------------------|

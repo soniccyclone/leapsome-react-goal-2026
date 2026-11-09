@@ -1,6 +1,3 @@
-PLAYWRIGHT_VERSION := $(shell grep "@playwright/test" package.json | sed -E 's/[^:]*: *"([^"]*)".*/\1/')
-export PLAYWRIGHT_VERSION
-
 UNAME := $(shell uname -s)
 ifeq ($(UNAME),Darwin)
 OPEN := open
@@ -63,10 +60,12 @@ test-watch:
 	$(APP) npm run test:watch
 
 test-e2e:
+	@pkg=$$(grep "@playwright/test" package.json | sed -E 's/[^:]*: *"([^"]*)".*/\1/'); env=$$(sed -n 's/^PLAYWRIGHT_VERSION=//p' .env); \
+	  [ "$$pkg" = "$$env" ] || { echo "Playwright $$pkg in package.json but $$env in .env" >&2; exit 1; }
 	$(DC) run --rm e2e; status=$$?; $(DC) stop preview; exit $$status
 
 check: lint typecheck test test-e2e
 
 clean:
 	$(APP) rm -rf dist playwright-report test-results
-	$(DC) down -v --remove-orphans
+	$(DC) --profile e2e down -v --remove-orphans
