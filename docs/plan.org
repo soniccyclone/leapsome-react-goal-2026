@@ -1,0 +1,246 @@
+#+TITLE: Learn REACT frontend development: one-shot build
+#+OPTIONS: toc:2 num:nil ^:nil
+#+DATE: 2026-11-09
+#+SETUPFILE: theme.setup
+
+* Goal
+
+Close the Leapsome key result: a simple React frontend application in
+this repo, a Makefile it installs and runs from on any machine with
+Docker, a devcontainer so the editor runs inside the same image, and
+documentation on debugging and testing that a stranger
+follows from a fresh clone to a running app with a debugger attached
+and tests passing. Docker is the only host requirement. No Node, no
+npm, no browser install on the host. Everything the KR grades lands
+in one PR.
+
+Assumptions, decided rather than asked: the app is a game backlog
+tracker; no server, Node is the toolchain inside the container; docs
+are org files; dependencies are the Vite react-ts template plus
+react-router, Vitest, React Testing Library, user-event, jsdom,
+Playwright; plain CSS in one file. The untracked ~PLAN.org~ from my
+earlier turn gets trashed as step 0.
+
+* Findings
+
+Repo is empty: no commits on =main=. Remote is
+=github.com/soniccyclone/leapsome-react-goal-2026=, public, personal.
+GitHub Pages is not enabled. One untracked file, ~PLAN.org~, mine, to
+be removed. Host has Docker =28.5.1= and Compose
+=v2.40.3= via Docker Desktop on arm64. Host Node is not relevant to
+the build and is not checked.
+
+The KR grades three things: an app that runs, documentation on
+debugging, documentation on testing. Debugging means the operational
+side: install, run, attach a debugger, read live state. With Docker as
+the boundary, "install" is =docker compose build= and nothing else, so
+the debugging doc can promise the same steps on macOS, Linux, and
+Windows with Docker Desktop.
+
+Two things Docker changes about a Vite project and the plan handles
+both:
+- Native binaries. esbuild and rollup ship per-OS binaries, so
+  =node_modules= must live in the container, never in the bind mount.
+  A named volume holds it. A host editor would then see no
+  =node_modules= and lose types, which is the reason development
+  happens in the devcontainer rather than being an option. One image,
+  one =node_modules=, no host-side install of anything.
+- HMR over a bind mount. Docker Desktop's virtiofs forwards file
+  events on current versions. If it does not, Vite's =usePolling= is
+  the fallback, set by one environment variable the compose file
+  already passes through.
+
+* Plan
+
+0. *Clear*. =trash PLAN.org=.
+
+1. *Scaffold*. Run =npm create vite@latest . -- --template react-ts=
+   inside a throwaway =node:24= container so the host never needs
+   Node. Strip the template demo. First commit.
+
+2. *Container layer*.
+   - =Dockerfile=: =FROM node:24-bookworm-slim=, =WORKDIR /app=, copy
+     =package*.json=, =npm ci=, copy the rest. One stage. Dev and
+     tests run from the same image.
+   - =compose.yaml=, three services:
+     | service  | image                                   | role                                       |
+     |----------+-----------------------------------------+--------------------------------------------|
+     | =app=    | built from =Dockerfile=                 | dev server, build, lint, typecheck, vitest |
+     | =e2e=    | =mcr.microsoft.com/playwright:v1.x-noble= | Playwright, browsers already in the image  |
+     | =preview=| same as =app=                           | serves =dist/= for e2e and prod-build debug |
+     =app= bind-mounts the repo at =/app=, mounts a named volume at
+     =/app/node_modules=, publishes =5173=. Vite runs with =--host 0.0.0.0=. =e2e= depends on
+     =preview= and targets it by service name.
+   - =.dockerignore=: =node_modules=, =dist=, =.git=, test reports.
+   - =.devcontainer/devcontainer.json=: =dockerComposeFile= pointing
+     at =compose.yaml=, =service: app=, =workspaceFolder: /app=,
+     =forwardPorts= 5173, extensions Vitest, ESLint,
+     Playwright. Opening the repo in VS Code offers "Reopen in
+     Container"; from then on the terminal, the TypeScript server,
+     ESLint, and the debugger all run in the image. This is the
+     development environment, singular. The Makefile targets below
+     work from the devcontainer terminal and from a host terminal
+     alike, but the debugger configs and the docs assume the
+     devcontainer.
+
+3. *Makefile*. The run path for people who only want the app up, or
+   a terminal-only setup. Every target is a =docker compose=
+   invocation. No target calls =node= or =npm= on the host. Inside
+   the devcontainer the same targets still work, compose nested
+   through the Docker socket, so there is one set of commands to
+   document.
+   | target        | runs                                                            |
+   |---------------+-----------------------------------------------------------------|
+   | =help=        | lists targets, default                                          |
+   | =setup=       | checks =docker= and =docker compose= exist, =compose build=, pulls the Playwright image |
+   | =dev=         | =compose up app=, prints =http://localhost:5173=                 |
+   | =shell=       | =compose run --rm app bash=                                     |
+   | =build=       | =compose run --rm app npm run build=                            |
+   | =preview=     | =compose up preview=                                            |
+   | =lint=        | eslint in =app=                                                 |
+   | =typecheck=   | =tsc --noEmit= in =app=                                         |
+   | =test=        | =vitest run= in =app=                                           |
+   | =test-watch=  | vitest watch in =app=                                           |
+   | =test-e2e=    | =compose run --rm e2e= against =preview=                        |
+   | =check=       | lint, typecheck, test, test-e2e; what CI runs                   |
+   | =clean=       | =compose down -v=, removes =dist= and reports                   |
+   OS detection only for the open-browser step in =dev=.
+
+4. *App*. Under =src/=:
+   - =games/types.ts=: =Game {id, title, platform, status}=, status
+     =backlog | playing | done=.
+   - =games/reducer.ts=: pure reducer, actions =add=, =remove=,
+     =setStatus=; unknown action returns state unchanged.
+   - =games/storage.ts=: =load()= validates shape and falls back to
+     empty on garbage; =save()=.
+   - =games/GamesContext.tsx=: =useReducer= with lazy init from
+     =load()=, one effect calling =save()=, hook =useGames()=.
+   - =components/AddGameForm.tsx=, =GameList.tsx=, =GameRow.tsx=,
+     =StatusFilter.tsx=, =GameDetail.tsx=.
+   - =App.tsx=: react-router, =/= and =/game/:id=.
+   - =App.css=: one file.
+   Every interactive element has an accessible name so tests query by
+   role.
+
+5. *Debug wiring*.
+   - =vite.config.ts=: =server.host= true, =server.watch.usePolling=
+     from =CHOKIDAR_USEPOLLING=, =build.sourcemap: true=.
+   - =.vscode/launch.json=, devcontainer only: "Debug in Chrome" launches the host browser through
+     VS Code.s port forwarding against =localhost:5173= with =webRoot=
+     =/app=, so breakpoints in TSX resolve through Vite.s source maps.
+     "Debug current Vitest file" runs vitest in-process with the
+     inspector, no port or path mapping because editor and runtime
+     share the filesystem.
+   - No host-editor debug path. Someone who wants a debugger opens
+     the devcontainer; that is what it is for.
+
+6. *Tests*.
+   - =src/games/reducer.test.ts=: every action plus unknown action.
+   - =src/games/storage.test.ts=: round trip, garbage yields empty.
+   - =src/App.test.tsx=: add a game, change status from detail route,
+     filter hides it, remove it. Real provider, =MemoryRouter=.
+   - =e2e/backlog.spec.ts=: add a game, reload, still there. Base URL
+     is the =preview= service name inside the compose network.
+   - Audit: each assertion broken once, survivors deleted, result
+     recorded in =docs/testing.org=.
+
+7. *CI*. =.github/workflows/ci.yml=: checkout, =make setup=,
+   =make check=. Ubuntu runners ship Docker and Compose, so CI runs
+   the same path as a laptop.
+
+8. *Docs*, org, each executed from a fresh clone before commit:
+   - =README.org=: what it is, "requires Docker", the two ways in
+     (develop in the devcontainer, or just run it with =make=),
+     pointer to the two docs.
+   - =docs/debugging.org=: a procedure from clone to debugger.
+     1. Install: Docker running, open in VS Code, "Reopen in
+        Container", what it builds, how to tell you are inside. What
+        to do when Docker is not running. A one-line aside: to only
+        run the app, =make setup= and =make dev= from any terminal.
+     2. Run: =make dev= from the devcontainer terminal, the URL, HMR,
+        where console output goes.
+     3. Browser: React DevTools, Components tab for live props and
+        state, Profiler for one interaction, Sources breakpoint in a
+        =.tsx= via source maps, Application tab to read and edit the
+        localStorage key.
+     4. Editor: "Debug in Chrome", breakpoint in a reducer action,
+        step a dispatch.
+     5. Tests: "Debug current Vitest file", =make test-watch= for the
+        edit loop, the Vitest extension sidebar.
+     6. Production build: =make build=, =make preview=, same
+        breakpoints because source maps ship.
+     7. Failure modes: blank page (console), state not updating
+        (DevTools props vs state), effect running twice (StrictMode,
+        expected in dev), stale localStorage (Application tab), HMR
+        not firing (set =CHOKIDAR_USEPOLLING=1=), editor shows red
+        squiggles everywhere (you are not inside the container).
+   - =docs/testing.org=: the three layers and why each exists, how to
+     run each via =make=, how to add a test at each layer with a
+     worked example, what is not tested and why, how to debug a
+     failing test, assertion audit results.
+   - =docs/notes.org=: short. Rendering model in your terms, where
+     state lives and why, what you would change at ten times the size.
+
+9. *Ship*. Branch =feat/backlog-tracker=, commits in order: scaffold,
+   containers, makefile, app, debug wiring, tests, ci, docs. Each
+   commit is pushed as it lands. PR into =main= at the end, body
+   written as a procedure: what to run and what it prints.
+
+* After the build, yours to do
+
+- Review and merge the PR.
+- Leapsome: KR to 100, Recent update with the repo link and a
+  paragraph naming the app, the Docker-only Makefile, and the two docs.
+- Optional walkthrough with Harrison: "Reopen in Container", "Debug
+  in Chrome", breakpoint in the reducer, step a dispatch.
+
+* Risks
+
+- Image pulls need network. =node:24-bookworm-slim= plus the Playwright
+  image is around two gigabytes. =make setup= pulls both up front so
+  nothing else waits on the network.
+- Playwright version must match between =package.json= and the image
+  tag, or the browsers in the image are the wrong build. The Makefile
+  reads the version from =package.json= and passes it to compose as
+  the image tag, one source of truth.
+- Bind-mount HMR on Docker Desktop. Handled by the polling fallback
+  above; the doc names the symptom and the variable.
+- Browser launch from inside a devcontainer relies on VS Code.s
+  js-debug opening the browser on the client side over a forwarded
+  port. That is supported, and verified during the build by actually
+  hitting a breakpoint, not by reading the config.
+- Windows hosts without =make=. The devcontainer path does not need
+  host =make= at all. The run-only path says Docker Desktop plus
+  =make= via WSL or Git Bash, and lists every target.s compose command
+  so it can be run by hand.
+- The docs claim to be executed. A fresh clone into the scratchpad
+  and every command run before commit. Whatever that exposes gets
+  fixed before the commit.
+
+* Decisions taken
+
+- Remote is the existing personal GitHub repo; push on every commit;
+  PR into =main= at the end.
+- Game backlog tracker is the app.
+- This plan lives in the repo at =docs/plan.org= and is published by
+  GitHub Pages, rendered by a workflow on push to =main=. The
+  debugging and testing docs land next to it and get published the
+  same way.
+
+* Verification
+
+Run-only path, from a fresh clone on a machine with only Docker:
+
+#+begin_src sh
+make setup
+make check               # lint, typecheck, vitest, playwright: all green
+make dev                 # add a game, reload, still there
+make clean
+#+end_src
+
+Development path, same clone: "Reopen in Container" in VS Code,
+confirm the TypeScript server resolves =react= with no red squiggles,
+=make check= from the devcontainer terminal, hit a breakpoint in the
+reducer with "Debug in Chrome", break inside a test with "Debug current
+Vitest file". Then follow =docs/testing.org= to add one assertion and
+run it with =make test=.

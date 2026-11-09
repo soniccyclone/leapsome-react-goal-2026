@@ -1,0 +1,14 @@
+#+TITLE: Learn REACT frontend development
+#+OPTIONS: toc:nil num:nil ^:nil
+#+SETUPFILE: theme.setup
+
+* Documents
+
+- [[file:plan.org][Plan]]: the one-shot build plan for the Leapsome goal.
+
+Debugging and testing documentation is added here when the
+application lands.
+
+* Source
+
+[[https://github.com/soniccyclone/leapsome-react-goal-2026][github.com/soniccyclone/leapsome-react-goal-2026]]
