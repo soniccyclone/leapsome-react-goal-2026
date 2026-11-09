@@ -3,6 +3,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [react()],
+  base: process.env.BASE_PATH ?? '/',
   server: {
     host: true,
     allowedHosts: ['backlog'],

@@ -7,7 +7,7 @@ import { GamesProvider } from './games/GamesContext.tsx'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <GamesProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <App />
       </BrowserRouter>
     </GamesProvider>
