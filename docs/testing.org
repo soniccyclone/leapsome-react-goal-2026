@@ -1,0 +1,170 @@
+#+TITLE: Testing
+#+OPTIONS: toc:2 num:nil ^:nil
+#+SETUPFILE: theme.setup
+
+Everything here runs through =make= and Docker. Nothing is installed on
+your machine. Run the commands from a terminal in the repo root, or from
+the devcontainer terminal.
+
+* The three layers
+
+| layer       | files                                       | what it runs against                                          | why it exists                                                                 |
+|-------------+---------------------------------------------+---------------------------------------------------------------+-------------------------------------------------------------------------------|
+| unit        | =src/games/reducer.test.ts=, =src/games/storage.test.ts= | the pure functions, plus jsdom's localStorage for storage     | the reducer and the load/validate/save logic have real branching and no UI; these tests are fast and point at the exact function |
+| integration | =src/App.test.tsx=                          | the real =GamesProvider= and components, =MemoryRouter=, driven by user-event in jsdom | catches wiring bugs the unit tests cannot see: a filter that is not applied, a button that dispatches the wrong action |
+| e2e         | =e2e/backlog.spec.ts=                       | Playwright with Chromium against the production build served by the =preview= service | the only layer with a real browser, real localStorage across a reload, and the built bundle |
+
+The integration test queries by role and accessible name (=getByRole=,
+=getByLabelText=), the way a user finds things, so it survives
+refactoring of markup. Unit tests are kept to pure logic. The e2e layer
+is deliberately one flow, because it is the slowest and the most
+likely to flake.
+
+* Running them
+
+| command           | what it does                                                                 |
+|-------------------+------------------------------------------------------------------------------|
+| =make test=       | unit and integration tests once (Vitest). Runs everything under =src/=.      |
+| =make test-watch= | Vitest in watch mode: reruns affected tests on save. =q= quits.              |
+| =make test-e2e=   | builds and serves the app in the =preview= service, runs Playwright against it in the =e2e= container, then stops =preview=. |
+| =make check=      | lint, typecheck, =make test=, =make test-e2e=. This is exactly what CI runs. |
+
+The first run of =make test= prints this (the exact durations differ):
+
+#+begin_example
+ Test Files  3 passed (3)
+      Tests  9 passed (9)
+#+end_example
+
+=make test-e2e= ends with the Playwright list reporter line:
+
+#+begin_example
+  1 passed
+#+end_example
+
+* Adding a test
+
+** Unit: a reducer test
+
+Add this inside the =describe('reducer', ...)= block in
+=src/games/reducer.test.ts=, after the last =it=:
+
+#+begin_src typescript
+  it('setStatus with an unknown id leaves the games unchanged', () => {
+    expect(reducer([zelda, mario], { type: 'setStatus', id: 'nope', status: 'done' })).toEqual([
+      zelda,
+      mario,
+    ])
+  })
+#+end_src
+
+Run =make test=. It now reports =Tests  10 passed (10)=. To see it can
+fail, change the =g.id === action.id= comparison in
+=src/games/reducer.ts= to =true= and run =make test= again: this test
+and the existing =setStatus= test fail. Revert it.
+
+** Integration: an App test
+
+Add this at the end of =src/App.test.tsx=. It renders the app at a
+route that has no game and checks the fallback:
+
+#+begin_src typescript
+it('shows a message for an unknown game id', () => {
+  render(
+    <GamesProvider>
+      <MemoryRouter initialEntries={['/game/nope']}>
+        <App />
+      </MemoryRouter>
+    </GamesProvider>,
+  )
+
+  expect(screen.queryByText('Game not found')).not.toBeNull()
+})
+#+end_src
+
+=make test= now reports one more test. Use =queryBy...= with
+=not.toBeNull()= for presence checks. =getBy...= throws when the
+element is missing, so the =expect= after it never gets a chance to
+fail by itself.
+
+** e2e: a Playwright test
+
+Add this at the end of =e2e/backlog.spec.ts=:
+
+#+begin_src typescript
+test('removed game stays removed after a reload', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Title').fill('Celeste')
+  await page.getByLabel('Platform').fill('PC')
+  await page.getByRole('button', { name: 'Add game' }).click()
+  await page.getByRole('button', { name: 'Remove Celeste' }).click()
+
+  await page.reload()
+  await expect(page.getByRole('link', { name: 'Celeste' })).toHaveCount(0)
+})
+#+end_src
+
+Run =make test-e2e=. It ends with =2 passed=. Each Playwright test gets
+a fresh browser context, so localStorage starts empty.
+
+* What is not tested
+
+- Visual layout and CSS. Nothing asserts how it looks; a test for it
+  would need screenshot baselines and the app is one stylesheet.
+- Other browsers. Playwright runs Chromium only (=playwright.config.ts=).
+  The app uses no browser-specific API.
+- Failure of localStorage itself (quota exceeded, storage disabled).
+  =save()= would throw in that case; the app does not handle it.
+- Accessibility beyond what role queries imply. No axe or similar.
+- The components one by one. They are covered through =App.test.tsx=
+  because a test per component would mostly repeat the implementation.
+
+* Debugging a failing test
+
+Unit and integration. In VS Code (devcontainer), open the failing test
+file, set a breakpoint, and run "Debug current Vitest file" from the
+Run and Debug panel (it runs =vitest run --no-file-parallelism= on the
+current file under the inspector). Without a debugger, run
+=make test-watch= and read the diff Vitest prints for the failed
+=expect=; it reruns on every save.
+
+e2e. The =e2e= container has no display, so there is no browser window
+to watch. Read the list reporter output: it names the test, the line of
+the failed assertion, and the locator that did not match. Playwright
+also writes =test-results/= in the repo root for each failed test
+(the repo is bind-mounted, so the folder appears on your machine; it is
+gitignored). The useful file is
+=test-results/<test name>-chromium/error-context.md=, a text snapshot of
+the page at the moment of failure, so you can see what was rendered
+instead of the element you expected. The reporter is =list=, so there
+is no =playwright-report/= folder. Paths in the output start with
+=/app/=, which is the repo inside the container. Open the app yourself with =make preview= at
+http://localhost:4173 and repeat the steps by hand with the browser
+developer tools; see [[file:debugging.org][debugging.org]].
+
+* Assertion audit
+
+Every assertion was broken on purpose, one at a time, by changing the
+code under it, and the suite was run. Each one failed, so none was
+redundant and none was deleted. One App assertion was rewritten because
+of what the audit showed: it was =getBy...= then =toBeTruthy()=, but
+=getBy= throws before =expect= runs, so the =expect= could never fail on
+its own. It is now =queryBy...= with =not.toBeNull()=.
+
+| assertion                                    | how the code was broken                        | result |
+|----------------------------------------------+------------------------------------------------+--------|
+| reducer add                                  | add returns state                              | failed |
+| reducer remove                               | remove returns state                           | failed |
+| reducer setStatus status field               | status: g.status                               | failed |
+| reducer setStatus only matching game         | g.id === action.id replaced with true          | failed |
+| reducer unknown action keeps reference       | default returns [...state]                     | failed |
+| storage round trip                           | save is a no-op                                | failed |
+| storage invalid JSON gives []                | catch rethrows                                 | failed |
+| storage non-array gives []                   | Array.isArray check inverted                   | failed |
+| storage bad status gives []                  | status check replaced with true                | failed |
+| App row shows done after detail change       | detail select always dispatches backlog        | failed |
+| App filter backlog hides game                | GameList ignores filter                        | failed |
+| App filter All shows it again                | StatusFilter ignores all                       | failed |
+| App remove hides game                        | GameRow remove is a no-op                      | failed |
+| e2e link visible after add                   | reducer add returns state                      | failed |
+| e2e link visible after reload                | save is a no-op                                | failed |

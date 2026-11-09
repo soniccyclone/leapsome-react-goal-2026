@@ -1,0 +1,43 @@
+name: leapsome-react-goal
+
+x-app: &app
+  build: .
+  volumes:
+    - ${LOCAL_WORKSPACE_FOLDER:-.}:/app
+    - node_modules:/app/node_modules
+
+services:
+  app:
+    <<: *app
+    ports:
+      - "5173:5173"
+    environment:
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-}
+    command: npm run dev -- --host 0.0.0.0
+
+  preview:
+    <<: *app
+    ports:
+      - "4173:4173"
+    command: sh -c "npm run build && npm run preview -- --host 0.0.0.0 --port 4173"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4173').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      retries: 90
+
+  e2e:
+    image: mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION:-}-noble
+    working_dir: /app
+    volumes:
+      - ${LOCAL_WORKSPACE_FOLDER:-.}:/app
+      - e2e_node_modules:/app/node_modules
+    environment:
+      BASE_URL: http://preview:4173
+    depends_on:
+      preview:
+        condition: service_healthy
+    command: sh -c "npm ci && npx playwright test"
+
+volumes:
+  node_modules:
+  e2e_node_modules:

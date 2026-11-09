@@ -1,0 +1,21 @@
+{
+  "name": "backlog",
+  "dockerComposeFile": ["../compose.yaml", "compose.yaml"],
+  "service": "app",
+  "workspaceFolder": "/app",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "containerEnv": {
+    "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vitest.explorer",
+        "oxc.oxc-vscode",
+        "ms-playwright.playwright"
+      ]
+    }
+  }
+}
